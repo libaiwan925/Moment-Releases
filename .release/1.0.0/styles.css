@@ -1667,34 +1667,52 @@
   }
 
   .moment-row {
-    grid-template-columns: 1fr;
-    min-height: auto;
+    grid-template-columns: 44px 14px minmax(0, 1fr);
+    column-gap: 6px;
+    min-height: 104px;
   }
 
   .moment-row-time {
-    padding: 4px 0;
-    text-align: left;
+    padding: 11px 0 0;
+    text-align: right;
+    font-size: var(--font-ui-smaller);
   }
 
   .moment-row-rail {
-    display: none;
+    display: flex;
+  }
+
+  .moment-row-rail::after {
+    top: 21px;
+  }
+
+  .moment-row-dot {
+    margin-top: 16px;
   }
 
   .moment-card {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(96px, 36%) minmax(0, 1fr);
     height: auto;
-    margin-bottom: 14px;
+    min-height: 94px;
+    margin: 3px 0 12px;
   }
 
   .moment-card-thumb {
     width: 100%;
-    height: min(82vw, 360px);
-    max-height: 360px;
+    height: auto;
+    max-height: none;
+    align-self: start;
+    aspect-ratio: 4 / 3;
   }
 
   .moment-card-body {
     height: auto;
-    min-height: 96px;
+    min-height: 94px;
+    padding: 11px 12px;
+  }
+
+  .moment-card.is-text-only .moment-card-body {
+    grid-column: 1 / -1;
   }
 
   .moment-detail-heading,
