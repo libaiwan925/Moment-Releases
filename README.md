@@ -16,4 +16,4 @@ Moment 的公开发行仓库，仅用于 Obsidian / BRAT 安装与更新。
 
 `libaiwan925/Moment-Releases`
 
-然后选择最新 beta release 进行测试。
+然后安装最新 Release。
