@@ -1,0 +1,45 @@
+name: Replace Moment 1.0.0
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.release/replace-1.0.0'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      ARTIFACT_URL: 'https://sdmntprwestus3.oaiusercontent.com/files/00000000-1c64-81fd-b1a1-f33585a2626b/raw?se=2026-09-10T12%3A15%3A20Z&sp=r&sv=2026-02-06&sr=b&scid=fb251ee7-090b-5fad-b96c-0dd3d2fee33a&skoid=5e713cdb-766b-475e-a3ca-8adb6cf99aa0&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-09-10T05%3A22%3A50Z&ske=2026-09-11T05%3A22%3A50Z&sks=b&skv=2026-02-06&sig=E6SC8VZdPmG7YDZHQOimHytNvvCKz1cprGcZ%2BivuuZQ%3D'
+      SOURCE_SHA: '52281c81fa1ed36dcf7b2056e667bd13d77db142'
+    steps:
+      - name: Download verified build artifact
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 "$ARTIFACT_URL" --output /tmp/moment-plugin.zip
+          echo '15212e51d3e4ae2713eaba2a5fe114f85d632a4fbc9487900e054e26277ce067  /tmp/moment-plugin.zip' | sha256sum --check -
+          mkdir /tmp/moment-plugin
+          unzip -q /tmp/moment-plugin.zip -d /tmp/moment-plugin
+
+      - name: Verify plugin files
+        run: |
+          set -euo pipefail
+          cd /tmp/moment-plugin
+          test "$(node -p "require('./manifest.json').version")" = '1.0.0'
+          echo 'dbfe2cc14ee78db123984cff23ba05fecffe3e32eca73f5597b3d6bfa6661de7  main.js' | sha256sum --check -
+          echo '3bbe9291df2e7273348e3595e68e874c26672adca25a549e2c1a34cb6df53efb  manifest.json' | sha256sum --check -
+          echo 'b24a18f878f944a59ffd10b85be6aee42d8d5248ea2e5b09416affabe5d073d5  styles.css' | sha256sum --check -
+
+      - name: Replace 1.0.0 assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cd /tmp/moment-plugin
+          gh release upload 1.0.0 main.js manifest.json styles.css --clobber --repo "$GITHUB_REPOSITORY"
+          gh release edit 1.0.0 \
+            --repo "$GITHUB_REPOSITORY" \
+            --notes "Moment 1.0.0 iPhone test build. Source build: ${SOURCE_SHA}"
