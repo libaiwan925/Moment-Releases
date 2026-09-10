@@ -1,0 +1,45 @@
+name: Replace Moment 1.0.0
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.release/publish-1.0.0'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      ARTIFACT_URL: 'https://sdmntprwestus.oaiusercontent.com/files/00000000-d20c-8230-95ba-fe5ef2c331e4/raw?se=2026-09-10T06%3A36%3A30Z&sp=r&sv=2026-02-06&sr=b&scid=9b5be099-9625-508f-aab4-cb20224c1c0d&skoid=b9a47e8b-72a2-4ed3-8028-a2a98c1a6142&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-09-10T03%3A25%3A47Z&ske=2026-09-11T03%3A25%3A47Z&sks=b&skv=2026-02-06&sig=QnDpFRIK1AJI2MlejBssIyMGG3PHLDZJEhS6x9JCZeo%3D'
+      SOURCE_SHA: '312b6fcbd7e4f83f04eb1c4cb680152504433256'
+    steps:
+      - name: Download verified build artifact
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 "$ARTIFACT_URL" --output /tmp/moment-plugin.zip
+          echo '2d752443c3bc201fc9df725496218181b78678bfd8f849836ca5e0e4766168a8  /tmp/moment-plugin.zip' | sha256sum --check -
+          mkdir /tmp/moment-plugin
+          unzip -q /tmp/moment-plugin.zip -d /tmp/moment-plugin
+
+      - name: Verify plugin files
+        run: |
+          set -euo pipefail
+          cd /tmp/moment-plugin
+          test "$(node -p "require('./manifest.json').version")" = '1.0.0'
+          echo '1b5658d8be4f2e5796861d3751e2100be3c36106f7606001c9d6a468075438e1  main.js' | sha256sum --check -
+          echo '3bbe9291df2e7273348e3595e68e874c26672adca25a549e2c1a34cb6df53efb  manifest.json' | sha256sum --check -
+          echo 'b24a18f878f944a59ffd10b85be6aee42d8d5248ea2e5b09416affabe5d073d5  styles.css' | sha256sum --check -
+
+      - name: Replace 1.0.0 assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cd /tmp/moment-plugin
+          gh release upload 1.0.0 main.js manifest.json styles.css --clobber --repo "$GITHUB_REPOSITORY"
+          gh release edit 1.0.0 \
+            --repo "$GITHUB_REPOSITORY" \
+            --notes "Moment 1.0.0 startup-safe build. Source build: ${SOURCE_SHA}"
