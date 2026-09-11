@@ -1,0 +1,45 @@
+name: Publish Moment 1.0.3
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.release/publish-1.0.3'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      ARTIFACT_URL: 'https://sdmntprwestcentralus.oaiusercontent.com/files/00000000-fa7c-81fb-aef3-899a6235d5d0/raw?se=2026-09-11T06%3A37%3A07Z&sp=r&sv=2026-02-06&sr=b&scid=e96d1248-a7e6-5fa8-b412-bbf3b8106d0d&skoid=5e713cdb-766b-475e-a3ca-8adb6cf99aa0&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-09-11T02%3A09%3A06Z&ske=2026-09-12T02%3A09%3A06Z&sks=b&skv=2026-02-06&sig=AsSyzaHjZXIbtVl0YAmDuIu64m2k0wMMmielGfa03js%3D'
+      SOURCE_SHA: '93b51da71f0352058367b5da7f82c8cb713ad8da'
+    steps:
+      - name: Download verified build artifact
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 "$ARTIFACT_URL" --output /tmp/moment-plugin.zip
+          echo 'c3c42eaefdb5d744a4f70e5d37543f1c5485560f95cac161389f1a4120b87984  /tmp/moment-plugin.zip' | sha256sum --check -
+          mkdir /tmp/moment-plugin
+          unzip -q /tmp/moment-plugin.zip -d /tmp/moment-plugin
+
+      - name: Verify plugin files
+        run: |
+          set -euo pipefail
+          cd /tmp/moment-plugin
+          test "$(node -p "require('./manifest.json').version")" = '1.0.3'
+          echo '18e255d4745b32b4dbffd1339916726aa74307fda422294f5251c887ac2bb36c  main.js' | sha256sum --check -
+          echo '1775bc17cd011418bffdee0ddcf800c5d9004665b4ec5b6e94de182ab8e6c23a  manifest.json' | sha256sum --check -
+          echo 'b24a18f878f944a59ffd10b85be6aee42d8d5248ea2e5b09416affabe5d073d5  styles.css' | sha256sum --check -
+
+      - name: Publish 1.0.3 release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cd /tmp/moment-plugin
+          gh release create 1.0.3 main.js manifest.json styles.css \
+            --repo "$GITHUB_REPOSITORY" \
+            --title '1.0.3' \
+            --notes "Moment 1.0.3 mobile validation build. Source: ${SOURCE_SHA}. Stabilizes the mobile editor with its own scroll surface and no focus-driven scrolling; completes Calendar/backfill image remove styling; unifies image append behavior between Timeline and Calendar; strengthens the Timeline back-to-top control; and matches Memories navigation chevrons to Calendar."
