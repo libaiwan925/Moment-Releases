@@ -1,0 +1,44 @@
+name: Publish Moment 1.0.7
+
+"on":
+  push:
+    branches:
+      - main
+    paths:
+      - .release/publish-1.0.7
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      ARTIFACT_URL: 'https://sdmntprcentralus.oaiusercontent.com/files/00000000-ca7c-81f5-9caf-8c1b9cc2ed09/raw?se=2026-09-11T08%3A10%3A34Z&sp=r&sv=2026-02-06&sr=b&scid=dbff185a-6620-504f-bcbc-a69381ae3fd7&skoid=5e713cdb-766b-475e-a3ca-8adb6cf99aa0&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-09-11T01%3A43%3A53Z&ske=2026-09-12T01%3A43%3A53Z&sks=b&skv=2026-02-06&sig=YO4xBfQkfBCjnK8dN9piJ8MXjakZRgRp3eurmdK5wP0%3D'
+      SOURCE_SHA: '0eda21991f502366675f148b4aba1e697df539c5'
+    steps:
+      - name: Download verified build artifact
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 "$ARTIFACT_URL" --output /tmp/moment-plugin.zip
+          echo '37e310af699afb2ea6c89a7b55b5f25ff34d1cc71d09ea9741505d8ed5e059bc  /tmp/moment-plugin.zip' | sha256sum --check -
+          mkdir /tmp/moment-plugin
+          unzip -q /tmp/moment-plugin.zip -d /tmp/moment-plugin
+      - name: Verify plugin files
+        run: |
+          set -euo pipefail
+          cd /tmp/moment-plugin
+          test "$(node -p "require('./manifest.json').version")" = '1.0.7'
+          echo 'd6d2d98edd6b527fbe0e5ddc677bc505b329ce1954ca00b9f5648702a0f908ba  main.js' | sha256sum --check -
+          echo '7cfba30d1757523873eb913181064d5031c5a72657310cc5b72dccc8073cee9d  manifest.json' | sha256sum --check -
+          echo 'b24a18f878f944a59ffd10b85be6aee42d8d5248ea2e5b09416affabe5d073d5  styles.css' | sha256sum --check -
+      - name: Publish 1.0.7 release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cd /tmp/moment-plugin
+          gh release create 1.0.7 main.js manifest.json styles.css \
+            --repo "$GITHUB_REPOSITORY" \
+            --title '1.0.7' \
+            --notes "Moment 1.0.7 UI polish. Source: ${SOURCE_SHA}. Audio chips are unified across desktop and mobile; Calendar Day/Month/Year use natural page-level scrolling on phones."
