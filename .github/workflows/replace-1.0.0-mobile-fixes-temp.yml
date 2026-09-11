@@ -1,0 +1,45 @@
+name: Replace Moment 1.0.0 mobile fixes
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.release/replace-1.0.0-mobile-fixes'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      ARTIFACT_URL: 'https://sdmntprwestus.oaiusercontent.com/files/00000000-4ef4-8230-b8f1-838cd76ac74b/raw?se=2026-09-11T03%3A07%3A11Z&sp=r&sv=2026-02-06&sr=b&scid=38106624-3e3f-5118-b227-5b9756c8a748&skoid=5e713cdb-766b-475e-a3ca-8adb6cf99aa0&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-09-11T02%3A06%3A51Z&ske=2026-09-12T02%3A06%3A51Z&sks=b&skv=2026-02-06&sig=hxCcfPvlTdiM2vX3RnwY3jyBrr0gOA6N8cfyoA1KEjw%3D'
+      SOURCE_SHA: '4bc3348d1ae08852d1b6608f7e3ae5d9a7f578fd'
+    steps:
+      - name: Download verified build artifact
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 "$ARTIFACT_URL" --output /tmp/moment-plugin.zip
+          echo 'afbbdb35ec6e0208c052926449eedd6a79b584f430f3801b382e81abc7e07ea6  /tmp/moment-plugin.zip' | sha256sum --check -
+          mkdir /tmp/moment-plugin
+          unzip -q /tmp/moment-plugin.zip -d /tmp/moment-plugin
+
+      - name: Verify plugin files
+        run: |
+          set -euo pipefail
+          cd /tmp/moment-plugin
+          test "$(node -p "require('./manifest.json').version")" = '1.0.0'
+          echo '2b80edcee74385c236cf4dc3fa7875df7fa7cce9898c6ec49ffd99c39f636516  main.js' | sha256sum --check -
+          echo '3bbe9291df2e7273348e3595e68e874c26672adca25a549e2c1a34cb6df53efb  manifest.json' | sha256sum --check -
+          echo 'b24a18f878f944a59ffd10b85be6aee42d8d5248ea2e5b09416affabe5d073d5  styles.css' | sha256sum --check -
+
+      - name: Replace 1.0.0 assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cd /tmp/moment-plugin
+          gh release upload 1.0.0 main.js manifest.json styles.css --clobber --repo "$GITHUB_REPOSITORY"
+          gh release edit 1.0.0 \
+            --repo "$GITHUB_REPOSITORY" \
+            --notes "Moment 1.0.0 mobile UI test build. Source build: ${SOURCE_SHA}. Fixes editor action alignment, mobile calendar year picker styling, and iOS keyboard viewport stability during inline editing."
