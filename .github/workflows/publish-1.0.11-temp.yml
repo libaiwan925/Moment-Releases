@@ -1,0 +1,44 @@
+name: Publish Moment 1.0.11
+
+"on":
+  push:
+    branches:
+      - main
+    paths:
+      - .release/publish-1.0.11
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      ARTIFACT_URL: 'https://sdmntprwestus3.oaiusercontent.com/files/00000000-3950-81fd-9d9c-10c6ca12b40a/raw?se=2026-09-11T12%3A53%3A06Z&sp=r&sv=2026-02-06&sr=b&scid=f6f357a0-ed42-556c-99e2-f7f329541ef9&skoid=5e713cdb-766b-475e-a3ca-8adb6cf99aa0&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-09-11T02%3A14%3A01Z&ske=2026-09-12T02%3A14%3A01Z&sks=b&skv=2026-02-06&sig=3I0CkgDolw25/%2BgWWpiUf2aC747fDKaWm406EmPd780%3D'
+      SOURCE_SHA: '9a1345d36c4ddb2e57b9e8f16768783208be17cb'
+    steps:
+      - name: Download verified build artifact
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 "$ARTIFACT_URL" --output /tmp/moment-plugin.zip
+          echo '9ff97fa883ddbc644c07d467dd62992c5a8f3f76b1528d060976b70bd781d261  /tmp/moment-plugin.zip' | sha256sum --check -
+          mkdir /tmp/moment-plugin
+          unzip -q /tmp/moment-plugin.zip -d /tmp/moment-plugin
+      - name: Verify plugin files
+        run: |
+          set -euo pipefail
+          cd /tmp/moment-plugin
+          test "$(node -p "require('./manifest.json').version")" = '1.0.11'
+          echo '9c9dae122c026db58d504cd3c19888d7a25eeba08711c1a55fff18d9ec2db306  main.js' | sha256sum --check -
+          echo '11396bdb231de0c34b17846b10ae61e4fec560f4317f3442fb9c1c66596d9343  manifest.json' | sha256sum --check -
+          echo 'b24a18f878f944a59ffd10b85be6aee42d8d5248ea2e5b09416affabe5d073d5  styles.css' | sha256sum --check -
+      - name: Publish 1.0.11 release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cd /tmp/moment-plugin
+          gh release create 1.0.11 main.js manifest.json styles.css \
+            --repo "$GITHUB_REPOSITORY" \
+            --title '1.0.11' \
+            --notes "Moment 1.0.11 mobile polish. Source: ${SOURCE_SHA}. Android composer/calendar image previews no longer get clipped by the native horizontal scrollbar; Back/Return Home pages use tighter top spacing."
