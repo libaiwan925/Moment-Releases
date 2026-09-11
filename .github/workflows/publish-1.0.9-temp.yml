@@ -1,0 +1,44 @@
+name: Publish Moment 1.0.9
+
+"on":
+  push:
+    branches:
+      - main
+    paths:
+      - .release/publish-1.0.9
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      ARTIFACT_URL: 'https://sdmntprwestus3.oaiusercontent.com/files/00000000-f318-81fd-8a60-1fafc898f6d0/raw?se=2026-09-11T12%3A13%3A05Z&sp=r&sv=2026-02-06&sr=b&scid=2b36cc5c-175b-5afa-b4fb-8a9c130eeecf&skoid=5e713cdb-766b-475e-a3ca-8adb6cf99aa0&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-09-11T01%3A20%3A45Z&ske=2026-09-12T01%3A20%3A45Z&sks=b&skv=2026-02-06&sig=vJ0RgBBtgXNq5AxOW4M6XotXV2ZQ9OZYGsMql5ONRYU%3D'
+      SOURCE_SHA: 'ebf70ce780ffa8374270267a172226f48557f2b0'
+    steps:
+      - name: Download verified build artifact
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 "$ARTIFACT_URL" --output /tmp/moment-plugin.zip
+          echo '3aa89f259c02b138bf93021e95f13d5ee44c73920621bf21b8c45f739b7a58eb  /tmp/moment-plugin.zip' | sha256sum --check -
+          mkdir /tmp/moment-plugin
+          unzip -q /tmp/moment-plugin.zip -d /tmp/moment-plugin
+      - name: Verify plugin files
+        run: |
+          set -euo pipefail
+          cd /tmp/moment-plugin
+          test "$(node -p "require('./manifest.json').version")" = '1.0.9'
+          echo '049a4c48be667436767cc25964fdad5a42f76aee2f0f946a0e536ea5db55bab2  main.js' | sha256sum --check -
+          echo '4345845586aa5b12af5efc06d8b18fbeed79915762bc709ac77c57e98f2fd12b  manifest.json' | sha256sum --check -
+          echo 'b24a18f878f944a59ffd10b85be6aee42d8d5248ea2e5b09416affabe5d073d5  styles.css' | sha256sum --check -
+      - name: Publish 1.0.9 release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cd /tmp/moment-plugin
+          gh release create 1.0.9 main.js manifest.json styles.css \
+            --repo "$GITHUB_REPOSITORY" \
+            --title '1.0.9' \
+            --notes "Moment 1.0.9 UI polish. Source: ${SOURCE_SHA}. Removes internal Return/Home rows globally, vertically aligns audio controls across platforms, highlights Edit/Save with the theme accent, and uses a two-row mobile detail/edit header with date/actions above weekday/time."
