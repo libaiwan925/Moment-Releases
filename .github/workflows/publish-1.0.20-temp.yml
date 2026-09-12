@@ -1,0 +1,44 @@
+name: Publish Moment 1.0.20
+
+"on":
+  push:
+    branches:
+      - main
+    paths:
+      - .release/publish-1.0.20
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      ARTIFACT_URL: 'https://sdmntprwestus3.oaiusercontent.com/files/00000000-d244-81fd-ab77-e2310387d470/raw?se=2026-09-12T07%3A21%3A08Z&sp=r&sv=2026-02-06&sr=b&scid=a8d7c0a5-aad4-5f5d-9286-5253f37f8825&skoid=5e713cdb-766b-475e-a3ca-8adb6cf99aa0&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-09-12T01%3A52%3A00Z&ske=2026-09-13T01%3A52%3A00Z&sks=b&skv=2026-02-06&sig=J6Xy/c/9bGlB%2BGGcNBXAvX9taouv44JIM0oGqsNag6s%3D'
+      SOURCE_SHA: 'd322edc93b9c4f6289ec56d233c80479ddeb6945'
+    steps:
+      - name: Download verified build artifact
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 "$ARTIFACT_URL" --output /tmp/moment-plugin.zip
+          echo '2689534b017687ed77b79b4642f2b95625513f412f6de894848e8d98438f4006  /tmp/moment-plugin.zip' | sha256sum --check -
+          mkdir /tmp/moment-plugin
+          unzip -q /tmp/moment-plugin.zip -d /tmp/moment-plugin
+      - name: Verify plugin files
+        run: |
+          set -euo pipefail
+          cd /tmp/moment-plugin
+          test "$(node -p "require('./manifest.json').version")" = '1.0.20'
+          echo 'ceb6facecbc9f85904a4415d44a1ca79b0e5ab606bce79f2e023691c8f64e905  main.js' | sha256sum --check -
+          echo 'dfa17ad681621e6366849150d071c53469a0608950fea50aa43cc40a41dad99e  manifest.json' | sha256sum --check -
+          echo 'b24a18f878f944a59ffd10b85be6aee42d8d5248ea2e5b09416affabe5d073d5  styles.css' | sha256sum --check -
+      - name: Publish 1.0.20 release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cd /tmp/moment-plugin
+          gh release create 1.0.20 main.js manifest.json styles.css \
+            --repo "$GITHUB_REPOSITORY" \
+            --title '1.0.20' \
+            --notes "Moment 1.0.20 switches Inline Edit to a fixed page frame with one controlled inner content scroller. Source: ${SOURCE_SHA}. The outer Timeline contentEl is locked while editing; back navigation and date/actions stay in the frame, while textarea, images, audio, location and tags share one .moment-edit-body scroller. Desktop, tablet and mobile use the same architecture. The normal shared page width/gutters are preserved, and no visualViewport transform, keyboard-height math or scrollTop restoration is used."
