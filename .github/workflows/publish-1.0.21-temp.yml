@@ -1,0 +1,44 @@
+name: Publish Moment 1.0.21
+
+"on":
+  push:
+    branches:
+      - main
+    paths:
+      - .release/publish-1.0.21
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      ARTIFACT_URL: 'https://sdmntprwestus.oaiusercontent.com/files/00000000-2064-8230-a993-17133dbcdb2c/raw?se=2026-09-12T07%3A33%3A36Z&sp=r&sv=2026-02-06&sr=b&scid=36794b18-f53f-5e09-ad4b-b50d8c8b12de&skoid=5e713cdb-766b-475e-a3ca-8adb6cf99aa0&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-09-11T13%3A25%3A36Z&ske=2026-09-12T13%3A25%3A36Z&sks=b&skv=2026-02-06&sig=HkOpVUCnLKc85BSYPBEY/O9%2B6BGO72kU5%2BKSpf1A468%3D'
+      SOURCE_SHA: '8e2ccda6ab4be543a5c3af4689c6a3ea33663ee3'
+    steps:
+      - name: Download verified build artifact
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 "$ARTIFACT_URL" --output /tmp/moment-plugin.zip
+          echo '9bb7870e975195a684d57f9eba2fc18a6b79b150554579c59759572a398ec83d  /tmp/moment-plugin.zip' | sha256sum --check -
+          mkdir /tmp/moment-plugin
+          unzip -q /tmp/moment-plugin.zip -d /tmp/moment-plugin
+      - name: Verify plugin files
+        run: |
+          set -euo pipefail
+          cd /tmp/moment-plugin
+          test "$(node -p "require('./manifest.json').version")" = '1.0.21'
+          echo '5ff580fbe82b89fa6b37a297f352130da8854a19448c27eae6d9958182fad56e  main.js' | sha256sum --check -
+          echo '304fe7e51e7a8fee072dc19d68ede3d8267c901ac3fd4b4c8a9e9a2e36312d85  manifest.json' | sha256sum --check -
+          echo 'b24a18f878f944a59ffd10b85be6aee42d8d5248ea2e5b09416affabe5d073d5  styles.css' | sha256sum --check -
+      - name: Publish 1.0.21 release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cd /tmp/moment-plugin
+          gh release create 1.0.21 main.js manifest.json styles.css \
+            --repo "$GITHUB_REPOSITORY" \
+            --title '1.0.21' \
+            --notes "Moment 1.0.21 keeps the fixed Inline Edit frame from 1.0.20 and adds one minimal editor-lifetime visualViewport offsetTop guard to cancel WebView-level keyboard pan that caused the Android white screen. Source: ${SOURCE_SHA}. The inner .moment-edit-body remains the only edit-content scroller and still handles native caret reveal. The guard does not use visualViewport.height, keyboard-height math, content/document scroll restoration, or keyboard animation timers, and is removed when Inline Edit closes."
