@@ -1,0 +1,44 @@
+name: Publish Moment 1.0.13
+
+"on":
+  push:
+    branches:
+      - main
+    paths:
+      - .release/publish-1.0.13
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      ARTIFACT_URL: 'https://sdmntprwestus3.oaiusercontent.com/files/00000000-6a30-81fd-9391-c011a72d3187/raw?se=2026-09-12T02%3A44%3A02Z&sp=r&sv=2026-02-06&sr=b&scid=8a670233-86af-5a6a-af81-f9f054f65ccf&skoid=5e713cdb-766b-475e-a3ca-8adb6cf99aa0&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-09-11T11%3A16%3A07Z&ske=2026-09-12T11%3A16%3A07Z&sks=b&skv=2026-02-06&sig=1mdSNgMhI/hGLdeocBd1ggSKOLuzALykRqepWZi8PRA%3D'
+      SOURCE_SHA: 'e41558b207b0c3d1241646f52fc24e2ff54af7a5'
+    steps:
+      - name: Download verified build artifact
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 "$ARTIFACT_URL" --output /tmp/moment-plugin.zip
+          echo '87fbb5cfdb83ea4527dcac888d72a18f9c52b5a49d7d9e0fcfec21e67bd3c1dc  /tmp/moment-plugin.zip' | sha256sum --check -
+          mkdir /tmp/moment-plugin
+          unzip -q /tmp/moment-plugin.zip -d /tmp/moment-plugin
+      - name: Verify plugin files
+        run: |
+          set -euo pipefail
+          cd /tmp/moment-plugin
+          test "$(node -p "require('./manifest.json').version")" = '1.0.13'
+          echo '3e06d754f8c081251157a3f10d05f7ae96bb995b4a72e74056376398625e4d8c  main.js' | sha256sum --check -
+          echo '7bca610d9b3b6f39f1017e7794d7b73a78e3c5114b0094e70e32bc8637534428  manifest.json' | sha256sum --check -
+          echo 'b24a18f878f944a59ffd10b85be6aee42d8d5248ea2e5b09416affabe5d073d5  styles.css' | sha256sum --check -
+      - name: Publish 1.0.13 release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cd /tmp/moment-plugin
+          gh release create 1.0.13 main.js manifest.json styles.css \
+            --repo "$GITHUB_REPOSITORY" \
+            --title '1.0.13' \
+            --notes "Moment 1.0.13 mobile layout stability. Source: ${SOURCE_SHA}. Timeline home cancels the obsolete top reserve after Memories/Calendar moved into the composer heading; mobile edit keeps the outer Obsidian view stationary while the software keyboard opens, leaving scrolling to the editor's own inner surface."
