@@ -1,0 +1,44 @@
+name: Publish Moment 1.0.22
+
+"on":
+  push:
+    branches:
+      - main
+    paths:
+      - .release/publish-1.0.22
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      ARTIFACT_URL: 'https://sdmntprwestus3.oaiusercontent.com/files/00000000-5880-81fd-80a6-efaadf77069a/raw?se=2026-09-12T07%3A48%3A13Z&sp=r&sv=2026-02-06&sr=b&scid=e96d5998-8619-5aa4-a280-4047f935cb7c&skoid=5e713cdb-766b-475e-a3ca-8adb6cf99aa0&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-09-12T01%3A23%3A51Z&ske=2026-09-13T01%3A23%3A51Z&sks=b&skv=2026-02-06&sig=dbVuRyMXs2fDkr9j3ztN/9kJgwu2jE%2BBE79FAqkc/WI%3D'
+      SOURCE_SHA: '43001ae875ec3411d563e853cea0a5a0f939da6f'
+    steps:
+      - name: Download verified build artifact
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 "$ARTIFACT_URL" --output /tmp/moment-plugin.zip
+          echo '070e54ad64030509dda0dc027b689bef5e27d82bdaa69b91d5f1c359cbe09198  /tmp/moment-plugin.zip' | sha256sum --check -
+          mkdir /tmp/moment-plugin
+          unzip -q /tmp/moment-plugin.zip -d /tmp/moment-plugin
+      - name: Verify plugin files
+        run: |
+          set -euo pipefail
+          cd /tmp/moment-plugin
+          test "$(node -p "require('./manifest.json').version")" = '1.0.22'
+          echo '95c58767624fbb030dc6910a4f941585bb7e15725a8c808f80673210b885523a  main.js' | sha256sum --check -
+          echo 'e9dfcb1055365525b2908e8ae30a11ffd73cdfcf11525ebef0cccf5393ea885c  manifest.json' | sha256sum --check -
+          echo 'b24a18f878f944a59ffd10b85be6aee42d8d5248ea2e5b09416affabe5d073d5  styles.css' | sha256sum --check -
+      - name: Publish 1.0.22 release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cd /tmp/moment-plugin
+          gh release create 1.0.22 main.js manifest.json styles.css \
+            --repo "$GITHUB_REPOSITORY" \
+            --title '1.0.22' \
+            --notes "Moment 1.0.22 keeps the fixed Inline Edit frame and single .moment-edit-body scroller, removes the 1.0.21 visualViewport transform guard, and changes non-scrolling edit ancestors from overflow:hidden to overflow:clip so mobile focus reveal cannot programmatically scroll the outer frame out of view. Source: ${SOURCE_SHA}. No viewport-height math, keyboard-height estimation, scrollTop restoration, or keyboard animation timers are used."
