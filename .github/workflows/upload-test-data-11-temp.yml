@@ -1,0 +1,38 @@
+name: Upload Moment test data 11
+
+"on":
+  push:
+    branches:
+      - main
+    paths:
+      - .release/upload-test-data-11
+
+permissions:
+  contents: write
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    env:
+      ARTIFACT_URL: 'https://sdmntprwestus.oaiusercontent.com/files/00000000-b5f0-8230-b53b-bf70358c830e/raw?se=2026-09-12T16%3A59%3A16Z&sp=r&sv=2026-02-06&sr=b&scid=c47ffb00-7723-5223-a406-fe3f1e6c4b7d&skoid=5e713cdb-766b-475e-a3ca-8adb6cf99aa0&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-09-12T01%3A23%3A24Z&ske=2026-09-13T01%3A23%3A24Z&sks=b&skv=2026-02-06&sig=P6hzwDa47xQTvaZvd%2FipeFHxxiHXRP1sT4PydixeYTQ%3D'
+      VERSION: '1.0.24-beta.1'
+    steps:
+      - name: Download generated test data artifact
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 "$ARTIFACT_URL" --output /tmp/moment-test-data-artifact.zip
+          echo 'f64da3cb92bf11d5850751764f34dfc130647600211cd0146207dea2008a502b  /tmp/moment-test-data-artifact.zip' | sha256sum --check -
+          mkdir -p /tmp/moment-test-data
+          unzip -q /tmp/moment-test-data-artifact.zip -d /tmp/moment-test-data
+          cd /tmp/moment-test-data
+          echo 'af891495ae1d43ee0a617268050a315940d7d12c961607e6fe97144c307985b8  Moment-test-data-11.zip' | sha256sum --check -
+
+      - name: Upload test data to beta release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cd /tmp/moment-test-data
+          gh release upload "$VERSION" Moment-test-data-11.zip Moment-test-data-11.zip.sha256 \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
