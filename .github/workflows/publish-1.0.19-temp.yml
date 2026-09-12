@@ -1,0 +1,44 @@
+name: Publish Moment 1.0.19
+
+"on":
+  push:
+    branches:
+      - main
+    paths:
+      - .release/publish-1.0.19
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      ARTIFACT_URL: 'https://sdmntprsouthcentralus.oaiusercontent.com/files/00000000-fd24-81f7-977d-8e160e5e94ba/raw?se=2026-09-12T07%3A05%3A43Z&sp=r&sv=2026-02-06&sr=b&scid=8a98f3f7-ac43-529a-ae00-f8f0fd4bbfab&skoid=5e713cdb-766b-475e-a3ca-8adb6cf99aa0&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-09-12T01%3A09%3A08Z&ske=2026-09-13T01%3A09%3A08Z&sks=b&skv=2026-02-06&sig=vqoLmXZ0AY1nTlDuLcW3SerD5%2BIAaOGu0Ahlw69egxg%3D'
+      SOURCE_SHA: 'd663cf0d942f087b13e1133ecebcb5cb45f2f81c'
+    steps:
+      - name: Download verified build artifact
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 "$ARTIFACT_URL" --output /tmp/moment-plugin.zip
+          echo '26284fad051d7d376aa0790276dab6fbb4756ebb28bff95fbfdbd1726f49eb3e  /tmp/moment-plugin.zip' | sha256sum --check -
+          mkdir /tmp/moment-plugin
+          unzip -q /tmp/moment-plugin.zip -d /tmp/moment-plugin
+      - name: Verify plugin files
+        run: |
+          set -euo pipefail
+          cd /tmp/moment-plugin
+          test "$(node -p "require('./manifest.json').version")" = '1.0.19'
+          echo '17800cc9d79d0ea91374668b000ba8d79bd53378c342069354226d3679d263e0  main.js' | sha256sum --check -
+          echo 'f4376413b6931b2b0f6a4791df1098b703c0242436edb652d8a4e6a348576a81  manifest.json' | sha256sum --check -
+          echo 'b24a18f878f944a59ffd10b85be6aee42d8d5248ea2e5b09416affabe5d073d5  styles.css' | sha256sum --check -
+      - name: Publish 1.0.19 release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cd /tmp/moment-plugin
+          gh release create 1.0.19 main.js manifest.json styles.css \
+            --repo "$GITHUB_REPOSITORY" \
+            --title '1.0.19' \
+            --notes "Moment 1.0.19 returns Inline Edit to the same native page-flow architecture as Detail. Source: ${SOURCE_SHA}. ItemView.contentEl is again the only vertical scroller; the editor shell is no longer absolute/full-height and no longer owns a nested page scroller. This removes the enlarged Edit-page geometry from 1.0.18. Mobile focus uses the WebView's native caret-reveal scrolling without viewport transforms or scroll restoration. The compact 6-row / 128px editor and 16px mobile input text remain."
