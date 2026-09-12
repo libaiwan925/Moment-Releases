@@ -1,0 +1,44 @@
+name: Publish Moment 1.0.17
+
+"on":
+  push:
+    branches:
+      - main
+    paths:
+      - .release/publish-1.0.17
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      ARTIFACT_URL: 'https://sdmntprwestus3.oaiusercontent.com/files/00000000-1c84-81fd-b81d-15494779f124/raw?se=2026-09-12T05%3A59%3A28Z&sp=r&sv=2026-02-06&sr=b&scid=504a3680-f5d5-5983-b1c0-b26002168340&skoid=5e713cdb-766b-475e-a3ca-8adb6cf99aa0&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-09-12T01%3A25%3A39Z&ske=2026-09-13T01%3A25%3A39Z&sks=b&skv=2026-02-06&sig=TtAOsG9XedHCpmbh9iqh6tJCbxH6kkJ5/kE6w79UXVw%3D'
+      SOURCE_SHA: 'da47dc5072453a0a2b1eb057563395475b895ee4'
+    steps:
+      - name: Download verified build artifact
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 "$ARTIFACT_URL" --output /tmp/moment-plugin.zip
+          echo '240d7d2f1635141bff886b7c0d24056e1d786ae55da9fea9cc3712e1bb16fa8a  /tmp/moment-plugin.zip' | sha256sum --check -
+          mkdir /tmp/moment-plugin
+          unzip -q /tmp/moment-plugin.zip -d /tmp/moment-plugin
+      - name: Verify plugin files
+        run: |
+          set -euo pipefail
+          cd /tmp/moment-plugin
+          test "$(node -p "require('./manifest.json').version")" = '1.0.17'
+          echo '69ddd962cf11b470d059ac56360ebff546e156a2e9e723b63a72cc31e808f601  main.js' | sha256sum --check -
+          echo '8169d5f850f6a5867e263019b7c11c6627d77f48f5defd6d152338d4c1a5ab85  manifest.json' | sha256sum --check -
+          echo 'b24a18f878f944a59ffd10b85be6aee42d8d5248ea2e5b09416affabe5d073d5  styles.css' | sha256sum --check -
+      - name: Publish 1.0.17 release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cd /tmp/moment-plugin
+          gh release create 1.0.17 main.js manifest.json styles.css \
+            --repo "$GITHUB_REPOSITORY" \
+            --title '1.0.17' \
+            --notes "Moment 1.0.17 mobile Inline Edit keyboard stabilization. Source: ${SOURCE_SHA}. Mobile Inline Edit now uses a contained editor page: the outer Moment page is locked in place while only the edit body scrolls to reveal focused fields. The previous visualViewport/transform compensation logic has been removed. The Memories timeline spacing fix from 1.0.16 is retained."
